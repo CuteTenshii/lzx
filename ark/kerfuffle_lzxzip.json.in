@@ -1,0 +1,37 @@
+{
+    "KPlugin": {
+        "Description": "Zip archives, including reading and writing Xbox 360 LZX (XMemCompress) ones",
+        "MimeTypes": [
+            "application/zip"
+        ],
+        "Name": "LZX zip plugin",
+        "Version": "@PROJECT_VERSION@"
+    },
+    "X-KDE-Kerfuffle-ReadWrite": true,
+    "X-KDE-Priority": 250,
+    "application/zip": {
+        "CompressionLevelDefault": 6,
+        "CompressionLevelMax": 9,
+        "CompressionLevelMin": 1,
+        "CompressionMethodDefault": "Default",
+        "CompressionMethods": {
+            "BZip2": "BZip2",
+            @ZIP_CM_ZSTD_JSON_LINE@
+            @ZIP_CM_LZMA_JSON_LINE@
+            @ZIP_CM_XZ_JSON_LINE@
+            "Default": "Default",
+            "Deflate": "Deflate",
+            "LZX": "LZX (Xbox 360)",
+            "Store": "Store"
+        },
+        "Encryption": true,
+        "EncryptionMethodDefault": "AES256",
+        "EncryptionMethods": [
+            "AES256",
+            "AES192",
+            "AES128"
+        ],
+        "SupportsTesting": true,
+        "SupportsWriteComment": true
+    }
+}
