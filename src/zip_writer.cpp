@@ -71,7 +71,9 @@ DosDateTime DosDateTime::fromFileTime(std::filesystem::file_time_type fileTime)
 #else
     const auto systemTime = std::chrono::file_clock::to_sys(fileTime);
 #endif
-    return fromTimeT(std::chrono::system_clock::to_time_t(systemTime));
+    // libc++'s file_clock ticks in __int128 nanoseconds, finer than
+    // system_clock, so to_time_t needs an explicit rounding first.
+    return fromTimeT(std::chrono::system_clock::to_time_t(std::chrono::floor<std::chrono::seconds>(systemTime)));
 }
 
 DosDateTime DosDateTime::now()
