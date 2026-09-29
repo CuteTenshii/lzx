@@ -419,7 +419,12 @@ TEST_CASE("file times convert to local DOS time")
     const auto systemTime = std::chrono::system_clock::from_time_t(std::mktime(&local));
     const auto written = std::filesystem::temp_directory_path() / "lzx-test-time";
     std::ofstream(written) << "x";
-    std::filesystem::last_write_time(written, std::chrono::clock_cast<std::chrono::file_clock>(systemTime));
+#if __cpp_lib_chrono >= 201907L
+    const auto fileTime = std::chrono::clock_cast<std::chrono::file_clock>(systemTime);
+#else
+    const auto fileTime = std::chrono::file_clock::from_sys(systemTime);
+#endif
+    std::filesystem::last_write_time(written, fileTime);
     const auto stamp = lzx::DosDateTime::fromFileTime(std::filesystem::last_write_time(written));
     std::filesystem::remove(written);
     CHECK_EQ(stamp.date, ((2012u - 1980u) << 9) | (10u << 5) | 23u);

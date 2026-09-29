@@ -64,7 +64,13 @@ std::uint32_t checked32(std::uint64_t value, const char* what)
 
 DosDateTime DosDateTime::fromFileTime(std::filesystem::file_time_type fileTime)
 {
+    // clock_cast is missing from some libc++ versions, including Apple's, and
+    // MSVC's file_clock has no to_sys.
+#if __cpp_lib_chrono >= 201907L
     const auto systemTime = std::chrono::clock_cast<std::chrono::system_clock>(fileTime);
+#else
+    const auto systemTime = std::chrono::file_clock::to_sys(fileTime);
+#endif
     return fromTimeT(std::chrono::system_clock::to_time_t(systemTime));
 }
 
