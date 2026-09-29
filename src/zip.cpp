@@ -1,12 +1,12 @@
 #include <lzx/zip.h>
 
+#include "platform.h"
+
 #include <zlib.h>
 
 #include <algorithm>
 #include <cctype>
-#include <fstream>
 #include <limits>
-#include <mutex>
 #include <string>
 
 namespace lzx {
@@ -57,8 +57,12 @@ std::vector<std::uint8_t> inflateRaw(const std::vector<std::uint8_t>& input, std
 } // namespace
 
 struct ZipArchive::Stream {
-    std::mutex mutex;
-    std::ifstream file;
+    explicit Stream(const std::filesystem::path& path)
+        : file(path)
+    {
+    }
+
+    detail::InputFile file;
 };
 
 ZipArchive::ZipArchive(ZipArchive&&) noexcept = default;
@@ -92,15 +96,10 @@ ZipArchive ZipArchive::open(const std::filesystem::path& path)
 {
     ZipArchive archive;
     archive.m_path = path;
-    archive.m_stream = std::make_unique<Stream>();
-    archive.m_stream->file.open(path, std::ios::binary);
-    if (!archive.m_stream->file) {
-        throw Error("cannot open " + path.string());
-    }
-    archive.m_stream->file.seekg(0, std::ios::end);
-    archive.m_size = static_cast<std::uint64_t>(archive.m_stream->file.tellg());
+    archive.m_stream = std::make_unique<Stream>(path);
+    archive.m_size = archive.m_stream->file.size();
     if (archive.m_size < kEndOfCentralDirSize) {
-        throw Error(path.string() + " is too small to be a zip archive");
+        throw Error(detail::displayPath(path) + " is too small to be a zip archive");
     }
 
     // The end record sits at the very end unless an archive comment
@@ -116,7 +115,7 @@ ZipArchive ZipArchive::open(const std::filesystem::path& path)
         }
     }
     if (endRecord == std::string::npos) {
-        throw Error(path.string() + " has no end-of-central-directory record");
+        throw Error(detail::displayPath(path) + " has no end-of-central-directory record");
     }
     const std::uint8_t* end = tail.data() + endRecord;
     const std::uint32_t directorySize = le32(end + 12);
@@ -124,10 +123,10 @@ ZipArchive ZipArchive::open(const std::filesystem::path& path)
     const std::uint16_t commentSize = le16(end + 20);
     if (directorySize == std::numeric_limits<std::uint32_t>::max()
         || directoryOffset == std::numeric_limits<std::uint32_t>::max()) {
-        throw Error(path.string() + " is a zip64 archive, which is not supported");
+        throw Error(detail::displayPath(path) + " is a zip64 archive, which is not supported");
     }
     if (static_cast<std::uint64_t>(directoryOffset) + directorySize > archive.m_size) {
-        throw Error(path.string() + " has a central directory outside the file");
+        throw Error(detail::displayPath(path) + " has a central directory outside the file");
     }
     const std::size_t commentAvailable = tailSize - endRecord - kEndOfCentralDirSize;
     archive.m_comment.assign(reinterpret_cast<const char*>(end + kEndOfCentralDirSize),
@@ -140,7 +139,7 @@ ZipArchive ZipArchive::open(const std::filesystem::path& path)
     while (pos + kCentralDirRecordSize <= directory.size()) {
         const std::uint8_t* record = directory.data() + pos;
         if (le32(record) != kCentralDirSignature) {
-            throw Error(path.string() + ": bad central directory record at offset "
+            throw Error(detail::displayPath(path) + ": bad central directory record at offset "
                 + std::to_string(directoryOffset + pos));
         }
         const std::uint16_t nameSize = le16(record + 28);
@@ -148,7 +147,7 @@ ZipArchive ZipArchive::open(const std::filesystem::path& path)
         const std::uint16_t entryCommentSize = le16(record + 32);
         const std::size_t recordSize = kCentralDirRecordSize + nameSize + extraSize + entryCommentSize;
         if (pos + recordSize > directory.size()) {
-            throw Error(path.string() + ": truncated central directory");
+            throw Error(detail::displayPath(path) + ": truncated central directory");
         }
 
         ZipEntry entry;
@@ -215,15 +214,11 @@ bool ZipArchive::hasLocalHeader(const ZipEntry& entry) const
 std::vector<std::uint8_t> ZipArchive::readRaw(std::uint64_t offset, std::size_t size) const
 {
     if (offset > m_size || size > m_size - offset) {
-        throw Error(m_path.string() + ": read past the end of the file");
+        throw Error(detail::displayPath(m_path) + ": read past the end of the file");
     }
     std::vector<std::uint8_t> data(size);
-    const std::lock_guard lock(m_stream->mutex);
-    m_stream->file.clear();
-    m_stream->file.seekg(static_cast<std::streamoff>(offset));
-    m_stream->file.read(reinterpret_cast<char*>(data.data()), static_cast<std::streamsize>(size));
-    if (!m_stream->file) {
-        throw Error("cannot read " + m_path.string());
+    if (!m_stream->file.read(offset, data)) {
+        throw Error("cannot read " + detail::displayPath(m_path));
     }
     return data;
 }

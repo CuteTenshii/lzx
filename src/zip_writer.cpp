@@ -1,5 +1,7 @@
 #include <lzx/zip_writer.h>
 
+#include "platform.h"
+
 #include <zlib.h>
 
 #include <algorithm>
@@ -37,7 +39,11 @@ void le32(std::vector<std::uint8_t>& out, std::uint32_t value)
 DosDateTime fromTimeT(std::time_t seconds)
 {
     std::tm local{};
+#ifdef _WIN32
+    localtime_s(&local, &seconds);
+#else
     localtime_r(&seconds, &local);
+#endif
     // DOS dates start in 1980.
     const int year = std::clamp(local.tm_year + 1900, 1980, 2107);
     DosDateTime result;
@@ -75,7 +81,7 @@ ZipWriter::ZipWriter(std::filesystem::path path)
     m_tempPath += ".lzx-" + std::to_string(random()) + ".tmp";
     m_out.open(m_tempPath, std::ios::binary | std::ios::trunc);
     if (!m_out) {
-        throw Error("cannot create " + m_tempPath.string());
+        throw Error("cannot create " + detail::displayPath(m_tempPath));
     }
 }
 
@@ -92,7 +98,7 @@ void ZipWriter::writeBytes(std::span<const std::uint8_t> bytes)
 {
     m_out.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
     if (!m_out) {
-        throw Error("cannot write " + m_tempPath.string());
+        throw Error("cannot write " + detail::displayPath(m_tempPath));
     }
     m_offset += bytes.size();
 }
@@ -201,13 +207,13 @@ void ZipWriter::finish()
 
     m_out.close();
     if (!m_out) {
-        throw Error("cannot write " + m_tempPath.string());
+        throw Error("cannot write " + detail::displayPath(m_tempPath));
     }
     std::error_code error;
-    std::filesystem::rename(m_tempPath, m_path, error);
+    detail::replaceFile(m_tempPath, m_path, error);
     if (error) {
         std::filesystem::remove(m_tempPath, error);
-        throw Error("cannot replace " + m_path.string() + ": " + error.message());
+        throw Error("cannot replace " + detail::displayPath(m_path) + ": " + error.message());
     }
     m_finished = true;
 }

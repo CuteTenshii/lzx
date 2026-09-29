@@ -26,6 +26,8 @@ add_library(lzx
     src/decoder.cpp
     src/decoder.h
     src/encoder.cpp
+    src/platform.cpp
+    src/platform.h
     src/zip.cpp
     src/zip_writer.cpp
 )
