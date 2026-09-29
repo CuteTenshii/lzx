@@ -15,8 +15,21 @@ include(GNUInstallDirs)
 
 find_package(ZLIB REQUIRED)
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+if(LZX_BUILD_ARK_PLUGIN AND WIN32)
+    message(FATAL_ERROR "The Ark backend builds only on Linux and other Unix systems; turn off LZX_BUILD_ARK_PLUGIN")
+endif()
+
+# Also true for clang-cl, which takes MSVC's options.
+if(MSVC)
+    add_compile_options(/W4 /permissive- /utf-8)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-Wall -Wextra -Wpedantic -Wconversion -Wshadow)
+endif()
+
+# Windows finds DLLs next to the executable, so keep the library's DLL beside
+# the tool and the tests.
+if(WIN32 AND PROJECT_IS_TOP_LEVEL AND NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 endif()
 
 add_library(lzx
@@ -39,11 +52,14 @@ target_include_directories(lzx
     PRIVATE src
 )
 target_link_libraries(lzx PRIVATE ZLIB::ZLIB)
-set_target_properties(lzx PROPERTIES POSITION_INDEPENDENT_CODE ON)
+# The headers carry no export macros; with BUILD_SHARED_LIBS on Windows, CMake
+# exports every symbol of the DLL instead.
+set_target_properties(lzx PROPERTIES POSITION_INDEPENDENT_CODE ON WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 install(TARGETS lzx EXPORT lzxTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 install(FILES include/lzx/lzx.h include/lzx/zip.h include/lzx/zip_writer.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/lzx)
 install(EXPORT lzxTargets NAMESPACE lzx:: FILE lzxTargets.cmake DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/lzx)
