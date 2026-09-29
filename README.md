@@ -2,7 +2,7 @@
 
 A C++20 library for the LZX variant of the Xbox 360 XMemCompress API, and for the zip archives that store it as compression method 21, as Forza Horizon does. It compresses and decompresses, reads and writes those archives, and comes with a command-line tool and an Ark backend.
 
-The library and `lzxzip` run on Linux and on Windows 7 and later, and depend only on the standard library and zlib. The Ark backend is Linux-only.
+The library and `lzxzip` run on Linux, macOS, and Windows 7 and later, and depend only on the standard library and zlib. The Ark backend is Linux-only.
 
 ## The archives
 
