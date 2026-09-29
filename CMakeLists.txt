@@ -59,7 +59,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/lzxConfig.cmake ${CMAKE_CURRENT_BINARY
 
 if(LZX_BUILD_TOOLS)
     add_executable(lzxzip tools/lzxzip.cpp)
-    target_link_libraries(lzxzip PRIVATE lzx::lzx)
+    target_link_libraries(lzxzip PRIVATE lzx::lzx $<$<PLATFORM_ID:Windows>:shell32>)
     install(TARGETS lzxzip RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 
